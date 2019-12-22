@@ -1,4 +1,5 @@
-import urllib.request
+# import urllib.request
+import requests
 from janome.tokenizer import Tokenizer
 import pymongo
 import time
@@ -6,7 +7,6 @@ import re
 import nltk
 from nltk.stem import WordNetLemmatizer
 import unicodedata
-
 from bs4 import BeautifulSoup
 from bs4.element import Comment
 
@@ -92,22 +92,24 @@ tokennizer = Tokenizer('neologd')
 for obj in db.query.find({'is_checked': False}):
     url = obj['href']
 
-    headers = { "User-Agent" :  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36" }
-    req = urllib.request.Request(url, None, headers)
-    with urllib.request.urlopen(req) as res:
-        # print(res.headers.get_content_charset())
-        read_body = res.read()
-        try:
-            body = read_body.decode('utf-8')
-        except:
-            body = read_body.decode('shift-jis')
+    # headers = { "User-Agent" :  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36" }
+    # req = urllib.request.Request(url, None, headers)
+    # with urllib.request.urlopen(req) as res:
+    #     # print(res.headers.get_content_charset())
+    #     read_body = res.read()
+    #     try:
+    #         body = read_body.decode('utf-8')
+    #     except:
+    #         body = read_body.decode('shift-jis')
 
-    soup = BeautifulSoup(body, 'lxml')
+    # response = requests.get(url, headers=headers)
+    # response.encoding = response.apparent_encoding
+    # soup = BeautifulSoup(response.text, 'lxml')
 
-    web_text = text_from_html(body)
+    # web_text = text_from_html(response.text)
 
     lang = ''
-    if is_japanese(obj.search_value):
+    if is_japanese(obj['search_value']):
         lang = 'ja'
     else:
         lang = 'en'
@@ -117,38 +119,40 @@ for obj in db.query.find({'is_checked': False}):
     print("query_words=", query_words)
 
     for v in query_words['noun']:
-        if (web_text.count(v) > 0):
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+        result=db.word.insert_one({'section_name': 'query', 'type': 'Noun', 'lang': lang, 'href': url, 'count': -1, 'value': v})
 
     for v in query_words['properNoun']:
-        if (web_text.count(v) > 0):
-            result=db.word.insert_one({'section_name': 'query', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+        result=db.word.insert_one({'section_name': 'query', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': -1, 'value': v})
 
     for v in query_words['verb']:
-        if (web_text.count(v) > 0):
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+        result=db.word.insert_one({'section_name': 'query', 'type': 'Verb', 'lang': lang, 'href': url, 'count': -1, 'value': v})
 
     for v in query_words['adjective']:
-        if (web_text.count(v) > 0):
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+        result=db.word.insert_one({'section_name': 'query', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': -1, 'value': v})
 
 for obj in db.favorite.find({'is_checked': False}):
     url = obj['href']
 
     headers = { "User-Agent" :  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36" }
-    req = urllib.request.Request(url, None, headers)
-    with urllib.request.urlopen(req) as res:
-        # print(res.headers.get_content_charset())
-        read_body = res.read()
-        try:
-            body = read_body.decode('utf-8')
-        except:
-            body = read_body.decode('shift-jis')
+    # req = urllib.request.Request(url, None, headers)
+    # with urllib.request.urlopen(req) as res:
+    #     # print(res.headers.get_content_charset())
+    #     read_body = res.read()
+    #     try:
+    #         body = read_body.decode('utf-8')
+    #     except:
+    #         body = read_body.decode('shift-jis')
 
-    soup = BeautifulSoup(body, 'lxml')
+    # soup = BeautifulSoup(body, 'lxml')
 
-    web_text = text_from_html(body)
+    # web_text = text_from_html(body)
     # print(web_text)
+
+    response = requests.get(url, headers=headers)
+    response.encoding = response.apparent_encoding
+    soup = BeautifulSoup(response.text, 'lxml')
+
+    web_text = text_from_html(response.text)
 
     title = ''
     title_soup = soup.find("meta", property="og:title")
