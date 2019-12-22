@@ -5,6 +5,7 @@ import time
 import re
 import nltk
 from nltk.stem import WordNetLemmatizer
+import unicodedata
 
 from bs4 import BeautifulSoup
 from bs4.element import Comment
@@ -59,8 +60,9 @@ def get_words(tokennizer, data, lang):
         tokens = nltk.word_tokenize(data)
         tagged = nltk.pos_tag(tokens)
         lemmatizer = WordNetLemmatizer()
+        only_english = re.compile('[a-zA-Zａ-ｚＡ-Ｚ -]+')
         for v in tagged:
-            if len(v[0]) >= 3:
+            if len(v[0]) >= 3 and only_english.fullmatch(v[0]) != None:
                 if v[1] == 'NN' or v[1] == 'NNS':
                     noun.append(lemmatizer.lemmatize(v[0], pos='n'))
                 elif v[1] == 'NNP' or v[1] == 'NNPS':
@@ -74,13 +76,20 @@ def get_words(tokennizer, data, lang):
 
     return {"noun": noun, "properNoun": properNoun, "verb": verb, "adjective": adjective}
 
-
+def is_japanese(string):
+    for ch in string:
+        name = unicodedata.name(ch)
+        if "CJK UNIFIED" in name \
+        or "HIRAGANA" in name \
+        or "KATAKANA" in name:
+            return True
+    return False
 
 client = pymongo.MongoClient("localhost", 27017)
 db = client.oborobot
-
 tokennizer = Tokenizer('neologd')
-for obj in db.favorite.find({'is_checked': False}):
+
+for obj in db.query.find({'is_checked': False}):
     url = obj['href']
 
     headers = { "User-Agent" :  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36" }
@@ -97,12 +106,62 @@ for obj in db.favorite.find({'is_checked': False}):
 
     web_text = text_from_html(body)
 
+    lang = ''
+    if is_japanese(obj.search_value):
+        lang = 'ja'
+    else:
+        lang = 'en'
+
+    query_words = get_words(tokennizer, obj['search_value'], lang)
+
+    print("query_words=", query_words)
+
+    for v in query_words['noun']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'query', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+
+    for v in query_words['properNoun']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'query', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+
+    for v in query_words['verb']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'query', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+
+    for v in query_words['adjective']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'query', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+
+for obj in db.favorite.find({'is_checked': False}):
+    url = obj['href']
+
+    headers = { "User-Agent" :  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36" }
+    req = urllib.request.Request(url, None, headers)
+    with urllib.request.urlopen(req) as res:
+        # print(res.headers.get_content_charset())
+        read_body = res.read()
+        try:
+            body = read_body.decode('utf-8')
+        except:
+            body = read_body.decode('shift-jis')
+
+    soup = BeautifulSoup(body, 'lxml')
+
+    web_text = text_from_html(body)
+    # print(web_text)
+
     title = ''
     title_soup = soup.find("meta", property="og:title")
     if title_soup != None:
         title = title_soup["content"]
     else:
         title = soup.find('title').text
+
+    lang = ''
+    if is_japanese(title):
+        lang = 'ja'
+    else:
+        lang = 'en'
 
     description = ''
     description_soup = soup.find("meta",  property="og:description")
@@ -113,32 +172,12 @@ for obj in db.favorite.find({'is_checked': False}):
         if description_soup != None:
             description = description_soup["content"]
         else:
-            pass
-    # print(body)
-    # a
+            if lang == 'ja':
+                description = web_text[0:120]
+            else:
+                description = web_text[0:280]
 
-    # langParser = LangParser()
-    # langParser.feed(body)
-    # lang = langParser.return_value
-    # langParser.close()
-    # print(lang)
-    # print(body)
-    # titleParser = TitleParser()
-    # titleParser.feed(body)
-    # title = titleParser.return_value
-    # titleParser.close()
-    # print(tsitle)
-    # for token in Tokenizer().tokenize(title):
-    #     # print(token)
-    #     part_of_speech_list = token.part_of_speech.split(',')
-    #     hinsi = part_of_speech_list[0]
-    #     hinsi_detail = part_of_speech_list[1]
-    #     if hinsi == '名詞' and (hinsi_detail == '一般' or hinsi_detail == '固有名詞') and len(hinsi) > 1:
-    #         print(token.surface)
-    #         print(token.part_of_speech
-
-    lang = obj['lang']
-    title_words = get_words(tokennizer, title, lang)
+    title_words = get_words(tokennizer, title + description, lang)
 
     # descriptionParser = DescriptionParser()
     # descriptionParser.feed(body)
@@ -165,7 +204,6 @@ for obj in db.favorite.find({'is_checked': False}):
     for v in title_words['adjective']:
         if (web_text.count(v) > 0):
             result=db.word.insert_one({'section_name': 'title', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
-
 
     for v in description_words['noun']:
         if (web_text.count(v) > 0):
