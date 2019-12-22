@@ -1,6 +1,4 @@
 import urllib.request
-from html.parser import HTMLParser
-from html.entities import name2codepoint
 from janome.tokenizer import Tokenizer
 import pymongo
 import time
@@ -8,61 +6,24 @@ import re
 import nltk
 from nltk.stem import WordNetLemmatizer
 
-class TitleParser(HTMLParser):
-    def __init__(self):
-        HTMLParser.__init__(self)
-        self.return_value = ""
-        self.flag = False # タイトルタグの場合のフラグ
+from bs4 import BeautifulSoup
+from bs4.element import Comment
 
-    def handle_starttag(self, tag, attrs):
-        if (tag == "title"):
-            self.flag = True
+def tag_visible(element):
+    if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
+        return False
+    if isinstance(element, Comment):
+        return False
+    return True
 
-    def handle_data(self, data):
-        if self.flag:
-            self.flag = False
-            self.return_value = data
 
-class DescriptionParser(HTMLParser):
-    def __init__(self):
-        HTMLParser.__init__(self)
-        self.return_value = ""
-        # self.content_value = ""
-        self.flag = False # タイトルタグの場合のフラグ
+def text_from_html(body):
+    soup = BeautifulSoup(body, 'html.parser')
+    texts = soup.findAll(text=True)
+    visible_texts = filter(tag_visible, texts)
+    return u" ".join(t.strip() for t in visible_texts)
 
-    def handle_starttag(self, tag, attrs):
-        if (tag == "meta"):
-            for attr in attrs:
-                # print(attr, (attr[0] == 'name' or attr[0] == 'property') and 'description' in attr[1].lower())
-                if (attr[0] == 'name' or attr[0] == 'property') and 'description' in attr[1].lower() and len(self.return_value) == 0:
-                    # print("     attr:", attr)
-                    self.flag = True
-                    # if len(self.content_value) > 0:
-                    #     self.return_value = attr[1]
-                elif attr[0] == 'content':
-                    if self.flag:
-                        # print(attr[1])
-                        self.flag = False
-                        self.return_value = attr[1]
-                    # self.content_value = atstr[1]
-
-class LangParser(HTMLParser):
-    def __init__(self):
-        HTMLParser.__init__(self)
-        self.return_value = ""
-        # self.content_value = ""
-        # self.flag = False # タイトルタグの場合のフラグ
-
-    def handle_starttag(self, tag, attrs):
-        if (tag == "html"):
-            for attr in attrs:
-                # print(attr, (attr[0] == 'name' or attr[0] == 'property') and 'description' in attr[1].lower())
-                if attr[0] == 'lang':
-                    # print("     attr:", attr)
-                    # self.flag = True
-                    self.return_value = attr[1]
-
-def get_meisi(tokennizer, data, lang):
+def get_words(tokennizer, data, lang):
     noun = []
     properNoun = []
     verb = []
@@ -76,7 +37,7 @@ def get_meisi(tokennizer, data, lang):
             # print(token)
             code_regex = re.compile('[!"#$%&\'\\\\()*+,-./:;<=>?@[\\]^_`{|}~「」〔〕“”〈〉『』【】＆＊・（）＄＃＠。、？！｀＋￥％]')
 
-            if hinsi == '名詞' and code_regex.match(token.base_form) == None:
+            if hinsi == '名詞' and code_regex.match(token.base_form) == None and len(token.base_form) >= 2:
                 if hinsi_detail == '一般':
                     noun.append(token.base_form)
                 elif hinsi_detail == '固有名詞':
@@ -85,10 +46,10 @@ def get_meisi(tokennizer, data, lang):
                     verb.append(token.base_form)
                 elif hinsi_detail == '形容動詞語幹':
                     adjective.append(token.base_form)
-            elif hinsi == '動詞' and code_regex.match(token.base_form) == None:
+            elif hinsi == '動詞' and code_regex.match(token.base_form) == None and len(token.base_form) >= 2:
                 if hinsi_detail == '自立':
                     verb.append(token.base_form)
-            elif hinsi == '形容詞' and code_regex.match(token.base_form) == None:
+            elif hinsi == '形容詞' and code_regex.match(token.base_form) == None and len(token.base_form) >= 2:
                 if hinsi_detail == '自立':
                     adjective.append(token.base_form)
 
@@ -99,14 +60,15 @@ def get_meisi(tokennizer, data, lang):
         tagged = nltk.pos_tag(tokens)
         lemmatizer = WordNetLemmatizer()
         for v in tagged:
-            if v[1] == 'NN' or v[1] == 'NNS':
-                noun.append(lemmatizer.lemmatize(v[0], pos='n'))
-            elif v[1] == 'NNP' or v[1] == 'NNPS':
-                properNoun.append(lemmatizer.lemmatize(v[0], pos='n'))
-            elif v[1] == 'VB' or v[1] == 'VBD' or v[1] == 'VBG' or v[1] == 'VBN' or v[1] == 'VBP' or v[1] == 'VBZ':
-                verb.append(lemmatizer.lemmatize(v[0], pos='v'))
-            elif v[1] == 'JJ' or v[1] == 'JJR' or v[1] == 'JJS':
-                adjective.append(lemmatizer.lemmatize(v[0], pos="a"))
+            if len(v[0]) >= 3:
+                if v[1] == 'NN' or v[1] == 'NNS':
+                    noun.append(lemmatizer.lemmatize(v[0], pos='n'))
+                elif v[1] == 'NNP' or v[1] == 'NNPS':
+                    properNoun.append(lemmatizer.lemmatize(v[0], pos='n'))
+                elif v[1] == 'VB' or v[1] == 'VBD' or v[1] == 'VBG' or v[1] == 'VBN' or v[1] == 'VBP' or v[1] == 'VBZ':
+                    verb.append(lemmatizer.lemmatize(v[0], pos='v'))
+                elif v[1] == 'JJ' or v[1] == 'JJR' or v[1] == 'JJS':
+                    adjective.append(lemmatizer.lemmatize(v[0], pos="a"))
     else:
         pass
 
@@ -130,6 +92,28 @@ for obj in db.favorite.find({'is_checked': False}):
             body = read_body.decode('utf-8')
         except:
             body = read_body.decode('shift-jis')
+
+    soup = BeautifulSoup(body, 'lxml')
+
+    web_text = text_from_html(body)
+
+    title = ''
+    title_soup = soup.find("meta", property="og:title")
+    if title_soup != None:
+        title = title_soup["content"]
+    else:
+        title = soup.find('title').text
+
+    description = ''
+    description_soup = soup.find("meta",  property="og:description")
+    if description_soup != None:
+        description = description_soup["content"]
+    else:
+        description_soup = soup.find("meta",  property="description")
+        if description_soup != None:
+            description = description_soup["content"]
+        else:
+            pass
     # print(body)
     # a
 
@@ -138,11 +122,11 @@ for obj in db.favorite.find({'is_checked': False}):
     # lang = langParser.return_value
     # langParser.close()
     # print(lang)
-
-    titleParser = TitleParser()
-    titleParser.feed(body)
-    title = titleParser.return_value
-    titleParser.close()
+    # print(body)
+    # titleParser = TitleParser()
+    # titleParser.feed(body)
+    # title = titleParser.return_value
+    # titleParser.close()
     # print(tsitle)
     # for token in Tokenizer().tokenize(title):
     #     # print(token)
@@ -154,30 +138,51 @@ for obj in db.favorite.find({'is_checked': False}):
     #         print(token.part_of_speech
 
     lang = obj['lang']
-    title_meisi = get_meisi(tokennizer, title, lang)
+    title_words = get_words(tokennizer, title, lang)
 
-    descriptionParser = DescriptionParser()
-    descriptionParser.feed(body)
-    description = descriptionParser.return_value
-    descriptionParser.close()
+    # descriptionParser = DescriptionParser()
+    # descriptionParser.feed(body)
+    # description = descriptionParser.return_value
+    # descriptionParser.close()
     # print(description)
-    description_meisi = get_meisi(tokennizer, description, lang)
+    description_words = get_words(tokennizer, description, lang)
 
-    print("title_meisi=", title_meisi)
-    print("description_meisi=", description_meisi)
-    for v in title_meisi['noun']:
-        result=db.word.insert_one({'type': 'Noun', 'lang': lang, 'value': v})
+    print("title_words=", title_words)
+    print("description_words=", description_words)
 
-    for v in title_meisi['properNoun']:
-        result=db.word.insert_one({'type': 'ProperNoun', 'lang': lang, 'value': v})
+    for v in title_words['noun']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'title', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
 
-    for v in title_meisi['verb']:
-        result=db.word.insert_one({'type': 'Verb', 'lang': lang, 'value': v})
+    for v in title_words['properNoun']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'title', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
 
-    for v in title_meisi['adjective']:
-        result=db.word.insert_one({'type': 'Adjective', 'lang': lang, 'value': v})
+    for v in title_words['verb']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'title', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+
+    for v in title_words['adjective']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'title', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+
+
+    for v in description_words['noun']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'description', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+
+    for v in description_words['properNoun']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'description', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+
+    for v in description_words['verb']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'description', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
+
+    for v in description_words['adjective']:
+        if (web_text.count(v) > 0):
+            result=db.word.insert_one({'section_name': 'description', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text.count(v), 'value': v})
 
     result = db.favorite.update_one({'_id':obj['_id']}, {"$set": {'is_checked': True}})
-    print(result.values)
 
     time.sleep(1)
