@@ -63,9 +63,10 @@ class LangParser(HTMLParser):
                     self.return_value = attr[1]
 
 def get_meisi(tokennizer, data, lang):
-    ippan = []
-    koyuu = []
-    sahen = []
+    noun = []
+    properNoun = []
+    verb = []
+    adjective = []
     if lang == 'ja':
         for token in tokennizer.tokenize(data):
             # print(token)
@@ -75,30 +76,41 @@ def get_meisi(tokennizer, data, lang):
             # print(token)
             code_regex = re.compile('[!"#$%&\'\\\\()*+,-./:;<=>?@[\\]^_`{|}~「」〔〕“”〈〉『』【】＆＊・（）＄＃＠。、？！｀＋￥％]')
 
-            if hinsi == '名詞' and code_regex.match(token.surface) == None:
+            if hinsi == '名詞' and code_regex.match(token.base_form) == None:
                 if hinsi_detail == '一般':
-                    ippan.append(token.surface)
+                    noun.append(token.base_form)
                 elif hinsi_detail == '固有名詞':
-                    koyuu.append(token.surface)
+                    properNoun.append(token.base_form)
                 elif hinsi_detail == 'サ変接続':
-                    sahen.append(token.surface)
+                    verb.append(token.base_form)
+                elif hinsi_detail == '形容動詞語幹':
+                    adjective.append(token.base_form)
+            elif hinsi == '動詞' and code_regex.match(token.base_form) == None:
+                if hinsi_detail == '自立':
+                    verb.append(token.base_form)
+            elif hinsi == '形容詞' and code_regex.match(token.base_form) == None:
+                if hinsi_detail == '自立':
+                    adjective.append(token.base_form)
+
+
                 # print(token.surface)s
-        return {"ippan": ippan, "koyuu": koyuu, "sahen": sahen}
     elif lang == 'en':
         tokens = nltk.word_tokenize(data)
         tagged = nltk.pos_tag(tokens)
         lemmatizer = WordNetLemmatizer()
         for v in tagged:
             if v[1] == 'NN' or v[1] == 'NNS':
-                ippan.append(lemmatizer.lemmatize(v[0], 'n'))
+                noun.append(lemmatizer.lemmatize(v[0], pos='n'))
             elif v[1] == 'NNP' or v[1] == 'NNPS':
-                koyuu.append(lemmatizer.lemmatize(v[0], 'n'))
+                properNoun.append(lemmatizer.lemmatize(v[0], pos='n'))
             elif v[1] == 'VB' or v[1] == 'VBD' or v[1] == 'VBG' or v[1] == 'VBN' or v[1] == 'VBP' or v[1] == 'VBZ':
-                sahen.append(lemmatizer.lemmatize(v[0], 'v'))
-
-        return {"ippan": ippan, "koyuu": koyuu, "sahen": sahen}
+                verb.append(lemmatizer.lemmatize(v[0], pos='v'))
+            elif v[1] == 'JJ' or v[1] == 'JJR' or v[1] == 'JJS':
+                adjective.append(lemmatizer.lemmatize(v[0], pos="a"))
     else:
-        return {}
+        pass
+
+    return {"noun": noun, "properNoun": properNoun, "verb": verb, "adjective": adjective}
 
 
 
@@ -153,4 +165,19 @@ for obj in db.favorite.find({'is_checked': False}):
 
     print("title_meisi=", title_meisi)
     print("description_meisi=", description_meisi)
-    time.sleep(2)
+    for v in title_meisi['noun']:
+        result=db.word.insert_one({'type': 'Noun', 'lang': lang, 'value': v})
+
+    for v in title_meisi['properNoun']:
+        result=db.word.insert_one({'type': 'ProperNoun', 'lang': lang, 'value': v})
+
+    for v in title_meisi['verb']:
+        result=db.word.insert_one({'type': 'Verb', 'lang': lang, 'value': v})
+
+    for v in title_meisi['adjective']:
+        result=db.word.insert_one({'type': 'Adjective', 'lang': lang, 'value': v})
+
+    result = db.favorite.update_one({'_id':obj['_id']}, {"$set": {'is_checked': True}})
+    print(result.values)
+
+    time.sleep(1)
