@@ -10,6 +10,9 @@ import unicodedata
 from bs4 import BeautifulSoup
 from bs4.element import Comment
 from SPARQLWrapper import SPARQLWrapper, JSON
+import random
+import json
+from googletrans import Translator
 
 def tag_visible(element):
     if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
@@ -154,9 +157,11 @@ for obj in db.query.find({'is_checked': False}):
     print("query_words=", query_words)
 
     for v in query_words['noun']:
+        if len(v) == 0:
+            continue
         upper_value = v.upper()
+        first_char_upper = v[0].upper() + v[1:]
         if lang == 'en':
-            first_char_upper = v[0].upper() + v[1:]
             is_translated = False
             ja_text = ''
             for objj in db.word.find({'jp_nickname': {'$ne' : ''}, 'lang': 'en'}):
@@ -174,12 +179,14 @@ for obj in db.query.find({'is_checked': False}):
 
             result=db.word.insert_one({'section_name': 'query', 'type': 'Noun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': ja_text})
         else:
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Noun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+            result=db.word.insert_one({'section_name': 'query', 'type': 'Noun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
 
     for v in query_words['properNoun']:
+        if len(v) == 0:
+            continue
         upper_value = v.upper()
+        first_char_upper = v[0].upper() + v[1:]
         if lang == 'en':
-            first_char_upper = v[0].upper() + v[1:]
             is_translated = False
             ja_text = ''
             for objj in db.word.find({'jp_nickname': {'$ne' : ''}, 'lang': 'en'}):
@@ -197,21 +204,29 @@ for obj in db.query.find({'is_checked': False}):
 
             result=db.word.insert_one({'section_name': 'query', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': ja_text})
         else:
-            result=db.word.insert_one({'section_name': 'query', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+            result=db.word.insert_one({'section_name': 'query', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
 
     for v in query_words['verb']:
+        if len(v) == 0:
+            continue
         upper_value = v.upper()
+        first_char_upper = v[0].upper() + v[1:]
         if lang == 'en':
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Verb', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+            result=db.word.insert_one({'section_name': 'query', 'type': 'Verb', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
         else:
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Verb', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+            result=db.word.insert_one({'section_name': 'query', 'type': 'Verb', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
 
     for v in query_words['adjective']:
+        if len(v) == 0:
+            continue
         upper_value = v.upper()
+        first_char_upper = v[0].upper() + v[1:]
         if lang == 'en':
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+            result=db.word.insert_one({'section_name': 'query', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
         else:
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+            result=db.word.insert_one({'section_name': 'query', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
+
+    result = db.favorite.update_one({'_id':obj['_id']}, {"$set": {'is_checked': True}})
 
 for obj in db.favorite.find({'is_checked': False}):
     url = obj['href']
@@ -264,6 +279,8 @@ for obj in db.favorite.find({'is_checked': False}):
             else:
                 description = web_text[0:280]
 
+    favorite_id = obj['_id']
+    result = db.favorite.update({'_id': favorite_id}, {'$set':{'title':title, 'description': description}})
     title_words = get_words(tokennizer, title + description, lang)
 
     # descriptionParser = DescriptionParser()
@@ -382,3 +399,191 @@ for obj in db.favorite.find({'is_checked': False}):
     result = db.favorite.update_one({'_id':obj['_id']}, {"$set": {'is_checked': True}})
 
     time.sleep(1)
+
+
+config_file = open('config.json', 'r')
+config  = json.load(config_file)
+
+translator = Translator()
+
+client = pymongo.MongoClient("localhost", 27017)
+db = client.oborobot
+
+def include_hiragana(word):
+    kana_set = {chr(i) for i in range(12353, 12436)}
+    word_set = set(word)
+    if kana_set - word_set == kana_set:
+        return False
+    else:
+        return True
+
+def request_yandex_translater(text):
+    url = "https://translate.yandex.net/api/v1.5/tr.json/translate?key={}&text={}&lang=ja-en".format(config['yandex_key'], text)
+    res = requests.get(url)
+    res_json = json.loads(res.text)
+    if res_json['code'] != 200:
+        return ''
+    else:
+        return res_json['text'][0]
+
+def request_googletrans(text):
+    return translator.translate(text, src='ja' ,dest='en').text
+
+def gen_question(question_seed, hinsiType):
+    translated_from_ja_to_en = ''
+    question_seed_en = question_seed['en']
+    question_seed_ja = question_seed['ja']
+
+    # question_seed_type = -1
+    # if len(question_seed_en) == 0:
+    #     question_seed_type = 1
+    # elif len(question_seed_ja) == 0:
+    #     question_seed_type = 2
+    # else:
+    #     question_seed_type = 3
+
+    if len(question_seed_en) == 0:
+        question_result = list(db.question.find({'question_seed_ja': question_seed_ja}))
+        if len(question_result) == 0:
+            random_value = random.randint(1,2)
+            random_interval = random.randint(1,3)
+            try:
+                if random_value == 1:
+                    translated_from_ja_to_en = request_yandex_translater(question_seed_ja)
+                    if len(translated_from_ja_to_en) == 0:
+                        translated_from_ja_to_en = request_googletrans(question_seed_ja)
+                else:
+                    translated_from_ja_to_en = request_googletrans(question_seed_ja)
+                    if len(translated_from_ja_to_en) == 0:
+                        translated_from_ja_to_en = request_yandex_translater(question_seed_ja)
+            except:
+                try:
+                    translated_from_ja_to_en = request_yandex_translater(question_seed_ja)
+                except:
+                    print('translate error')
+                    return
+            time.sleep(random_interval)
+        else:
+            translated_from_ja_to_en = question_result[0]['translated_from_ja_to_en']
+
+        # print('AAA')
+            # result=db.question.insert_one({'question': , 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': ja_text})
+
+    ja_question = ''
+    en_question = ''
+
+    # if len(question_seed_en) == 0: 日本語
+    #     question_seed_type = 1
+    # elif len(question_seed_ja) == 0: 英語
+    #     question_seed_type = 2
+    # else: 日本語 英語
+    #     question_seed_type = 3
+
+    if hinsiType == 'ProperNoun':
+        if len(question_seed_en) == 0:# 日本語
+            ja_question = 'それは ' + question_seed_ja + ' に関係する?'
+            en_question = 'Do you think it is related to "' + translated_from_ja_to_en + '"?'
+        elif len(question_seed_ja) == 0:# 英語
+            ja_question = 'それは ' + question_seed_en + ' に関係する?'
+            en_question = 'Do you think it is related to "' + question_seed_en + '"?'
+        else:# 日本語 英語
+            ja_question = 'それは ' + question_seed_ja + ' に関係する?'
+            en_question = 'Do you think it is related to "' + question_seed_en + '"?'
+
+    elif hinsiType == 'Noun':
+        if len(question_seed_en) == 0:# 日本語
+            ja_question = 'それは ' + question_seed_ja + ' に関係しそう?'
+            en_question = 'Do you think it is related to "' + translated_from_ja_to_en + '"?'
+        elif len(question_seed_ja) == 0:# 英語
+            ja_question = 'それは ' + question_seed_en + ' に関係しそう?'
+            en_question = 'Do you think it is related to "' + question_seed_en + '"?'
+        else:# 日本語 英語
+            ja_question = 'それは ' + question_seed_ja + ' に関係しそう?'
+            en_question = 'Do you think it is related to "' + question_seed_en + '"?'
+    elif hinsiType == 'Adjective':
+        if len(question_seed_en) == 0:# 日本語
+            ja_question = 'それに対して ' + question_seed_ja + ' なイメージがある?'
+            en_question = 'Do you have a "' + translated_from_ja_to_en + '" image for that?'
+        elif len(question_seed_ja) == 0:# 英語
+            ja_question = 'それに対して ' + question_seed_en + ' なイメージがある?'
+            en_question = 'Do you have a "' + question_seed_en + '" image for that?'
+        else:# 日本語 英語
+            ja_question = 'それに対して ' + question_seed_ja + ' なイメージがある?'
+            en_question = 'Do you have a "' + question_seed_en + '" image for that?'
+    elif hinsiType == 'Verb':
+        if len(question_seed_en) == 0:# 日本語
+            ja_question = 'それは ' + question_seed_ja + ' に関係する?'
+            en_question = 'Do you think it is related to "' + translated_from_ja_to_en + '"?'
+        elif len(question_seed_ja) == 0:# 英語
+            ja_question = 'それは ' + question_seed_en + ' に関係する?'
+            en_question = 'Do you think it is related to "' + question_seed_en + '"?'
+        else:# 日本語 英語
+            ja_question = 'それは ' + question_seed_ja + ' に関係する?'
+            en_question = 'Do you think it is related to "' + question_seed_en + '"?'
+        # ja_question = 'それは ' + question_seed + ' ことに関係する?' if include_hiragana(question_seed) else 'それは何かの ' + question_seed + ' に関係する?'
+
+        # if len(translated_from_ja_to_en) == 0:
+        #     en_question = 'Do you think it is related to "' + question_seed + '"?'
+        # else:
+        #     en_question ='Do you think it is related to "' + translated_from_ja_to_en + '"?'
+    else:
+        print('unknown hinsiType')
+        return
+
+    if len(list(db.question.find({'question': ja_question}))) == 0:
+        result=db.question.insert_one({'question': ja_question, 'lang': 'ja', 'question_seed_en': question_seed_en,  'question_seed_ja': question_seed_ja, 'question_seed_type' : hinsiType ,'translated_from_ja_to_en': translated_from_ja_to_en})
+        # print('BBB')
+
+    if len(list(db.question.find({'question': en_question}))) == 0:
+        result=db.question.insert_one({'question': en_question, 'lang': 'en', 'question_seed_en': question_seed_en,  'question_seed_ja': question_seed_ja, 'question_seed_type' : hinsiType ,'translated_from_ja_to_en': ''})
+        # print('CCC')
+
+    # print('DDD')
+
+
+def remove_duplication(hinsi_list):
+    upper_key_list = {}
+    for v in list(set(hinsi_list)):
+        upper_key_list[v.upper()] = v.lower()
+
+    r = []
+    for key in upper_key_list:
+        r.append(upper_key_list[key])
+
+    return r
+
+for obj in db.word.find({"type": "ProperNoun"}):
+    if obj['jp_nickname'] == '':
+        gen_question({'en': '', 'ja': obj['value']}, 'ProperNoun') # 日本語,
+    else:
+        if obj['value'] != obj['jp_nickname']:
+            gen_question({'en': obj['value'], 'ja': obj['jp_nickname']}, 'ProperNoun') # 英語, 日本語
+        else:
+            gen_question({'en': obj['value'], 'ja': ''}, 'ProperNoun') # 英語,
+
+for obj in db.word.find({"type": "Noun"}):
+    if obj['jp_nickname'] == '':
+        gen_question({'en': '', 'ja': obj['value']}, 'Noun') # 日本語,
+    else:
+        if obj['value'] != obj['jp_nickname']:
+            gen_question({'en': obj['value'], 'ja': obj['jp_nickname']}, 'Noun') # 英語, 日本語
+        else:
+            gen_question({'en': obj['value'], 'ja': ''}, 'Noun') # 英語,
+
+for obj in db.word.find({"type": "Adjective"}):
+    if obj['jp_nickname'] == '':
+        gen_question({'en': '', 'ja': obj['value']}, 'Adjective') # 日本語,
+    else:
+        if obj['value'] != obj['jp_nickname']:
+            gen_question({'en': obj['value'], 'ja': obj['jp_nickname']}, 'Adjective') # 英語, 日本語
+        else:
+            gen_question({'en': obj['value'], 'ja': ''}, 'Adjective') # 英語,
+
+for obj in db.word.find({"type": "Verb"}):
+    if obj['jp_nickname'] == '':
+        gen_question({'en': '', 'ja': obj['value']}, 'Verb') # 日本語,
+    else:
+        if obj['value'] != obj['jp_nickname']:
+            gen_question({'en': obj['value'], 'ja': obj['jp_nickname']}, 'Verb') # 英語, 日本語
+        else:
+            gen_question({'en': obj['value'], 'ja': ''}, 'Verb') # 英語,

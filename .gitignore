@@ -131,3 +131,6 @@ dmypy.json
 # neologd
 neologd
 neologd.csv
+
+# Config
+config.json
