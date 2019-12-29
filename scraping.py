@@ -125,7 +125,8 @@ def get_ja_text_from_en(search_value):
 
 client = pymongo.MongoClient("localhost", 27017)
 db = client.oborobot
-tokennizer = Tokenizer('neologd')
+# tokennizer = Tokenizer('neologd')
+tokennizer = Tokenizer()
 
 for obj in db.query.find({'is_checked': False}):
     url = obj['href']
@@ -530,6 +531,7 @@ def gen_question(question_seed, hinsiType):
         print('unknown hinsiType')
         return
 
+    # TODO: ここの構造は見直し
     if len(list(db.question.find({'question': ja_question}))) == 0:
         result=db.question.insert_one({'question': ja_question, 'lang': 'ja', 'question_seed_en': question_seed_en,  'question_seed_ja': question_seed_ja, 'question_seed_type' : hinsiType ,'translated_from_ja_to_en': translated_from_ja_to_en})
         # print('BBB')
