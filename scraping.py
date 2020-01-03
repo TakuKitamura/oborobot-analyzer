@@ -247,7 +247,11 @@ for obj in db.favorite.find({'is_checked': False}):
     # web_text = text_from_html(body)
     # print(web_text)
 
-    response = requests.get(url, headers=headers)
+    try:
+        response = requests.get(url, headers=headers)
+    except:
+        continue
+    time.sleep(1)
     response.encoding = response.apparent_encoding
     soup = BeautifulSoup(response.text, 'lxml')
 
