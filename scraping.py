@@ -129,281 +129,294 @@ db = client.oborobot
 tokennizer = Tokenizer()
 
 for obj in db.query.find({'is_checked': False}):
-    url = obj['href']
+    try:
+        url = obj['href']
 
-    # headers = { "User-Agent" :  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36" }
-    # req = urllib.request.Request(url, None, headers)
-    # with urllib.request.urlopen(req) as res:
-    #     # print(res.headers.get_content_charset())
-    #     read_body = res.read()
-    #     try:
-    #         body = read_body.decode('utf-8')
-    #     except:
-    #         body = read_body.decode('shift-jis')
+        # headers = { "User-Agent" :  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36" }
+        # req = urllib.request.Request(url, None, headers)
+        # with urllib.request.urlopen(req) as res:
+        #     # print(res.headers.get_content_charset())
+        #     read_body = res.read()
+        #     try:
+        #         body = read_body.decode('utf-8')
+        #     except:
+        #         body = read_body.decode('shift-jis')
 
-    # response = requests.get(url, headers=headers)
-    # response.encoding = response.apparent_encoding
-    # soup = BeautifulSoup(response.text, 'lxml')
+        # response = requests.get(url, headers=headers)
+        # response.encoding = response.apparent_encoding
+        # soup = BeautifulSoup(response.text, 'lxml')
 
-    # web_text = text_from_html(response.text)
+        # web_text = text_from_html(response.text)
 
-    lang = ''
-    if is_japanese(obj['search_value']):
-        lang = 'ja'
-    else:
-        lang = 'en'
-
-    query_words = get_words(tokennizer, obj['search_value'], lang)
-
-    print("query_words=", query_words)
-
-    for v in query_words['noun']:
-        if len(v) == 0:
-            continue
-        upper_value = v.upper()
-        first_char_upper = v[0].upper() + v[1:]
-        if lang == 'en':
-            is_translated = False
-            ja_text = ''
-            for objj in db.word.find({'jp_nickname': {'$ne' : ''}, 'lang': 'en'}):
-                if (objj['value'][0].upper() + objj['value'][1:]) == first_char_upper:
-                    is_translated = True
-                    ja_text = objj['jp_nickname']
-                    break
-            if is_translated == False:
-                get_ja_text = get_ja_text_from_en(first_char_upper)
-                time.sleep(1)
-                if get_ja_text != '':
-                    ja_text = get_ja_text
-                else:
-                    ja_text = v
-
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Noun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': ja_text})
+        lang = ''
+        if is_japanese(obj['search_value']):
+            lang = 'ja'
         else:
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Noun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
+            lang = 'en'
 
-    for v in query_words['properNoun']:
-        if len(v) == 0:
-            continue
-        upper_value = v.upper()
-        first_char_upper = v[0].upper() + v[1:]
-        if lang == 'en':
-            is_translated = False
-            ja_text = ''
-            for objj in db.word.find({'jp_nickname': {'$ne' : ''}, 'lang': 'en'}):
-                if (objj['value'][0].upper() + objj['value'][1:]) == first_char_upper:
-                    is_translated = True
-                    ja_text = objj['jp_nickname']
-                    break
-            if is_translated == False:
-                get_ja_text = get_ja_text_from_en(first_char_upper)
-                time.sleep(1)
-                if get_ja_text != '':
-                    ja_text = get_ja_text
-                else:
-                    ja_text = v
+        query_words = get_words(tokennizer, obj['search_value'], lang)
 
-            result=db.word.insert_one({'section_name': 'query', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': ja_text})
-        else:
-            result=db.word.insert_one({'section_name': 'query', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
+        # print("query_words=", query_words)
 
-    for v in query_words['verb']:
-        if len(v) == 0:
-            continue
-        upper_value = v.upper()
-        first_char_upper = v[0].upper() + v[1:]
-        if lang == 'en':
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Verb', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
-        else:
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Verb', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
+        for v in query_words['noun']:
+            if len(v) == 0:
+                continue
+            upper_value = v.upper()
+            first_char_upper = v[0].upper() + v[1:]
+            if lang == 'en':
+                is_translated = False
+                ja_text = ''
+                for objj in db.word.find({'jp_nickname': {'$ne' : ''}, 'lang': 'en'}):
+                    if (objj['value'][0].upper() + objj['value'][1:]) == first_char_upper:
+                        is_translated = True
+                        ja_text = objj['jp_nickname']
+                        break
+                if is_translated == False:
+                    get_ja_text = get_ja_text_from_en(first_char_upper)
+                    time.sleep(1)
+                    if get_ja_text != '':
+                        ja_text = get_ja_text
+                    else:
+                        ja_text = v
 
-    for v in query_words['adjective']:
-        if len(v) == 0:
-            continue
-        upper_value = v.upper()
-        first_char_upper = v[0].upper() + v[1:]
-        if lang == 'en':
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
-        else:
-            result=db.word.insert_one({'section_name': 'query', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
+                result=db.word.insert_one({'section_name': 'query', 'type': 'Noun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': ja_text})
+            else:
+                result=db.word.insert_one({'section_name': 'query', 'type': 'Noun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
 
-    result = db.favorite.update_one({'_id':obj['_id']}, {"$set": {'is_checked': True}})
+        for v in query_words['properNoun']:
+            if len(v) == 0:
+                continue
+            upper_value = v.upper()
+            first_char_upper = v[0].upper() + v[1:]
+            if lang == 'en':
+                is_translated = False
+                ja_text = ''
+                for objj in db.word.find({'jp_nickname': {'$ne' : ''}, 'lang': 'en'}):
+                    if (objj['value'][0].upper() + objj['value'][1:]) == first_char_upper:
+                        is_translated = True
+                        ja_text = objj['jp_nickname']
+                        break
+                if is_translated == False:
+                    get_ja_text = get_ja_text_from_en(first_char_upper)
+                    time.sleep(1)
+                    if get_ja_text != '':
+                        ja_text = get_ja_text
+                    else:
+                        ja_text = v
+
+                result=db.word.insert_one({'section_name': 'query', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': ja_text})
+            else:
+                result=db.word.insert_one({'section_name': 'query', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
+
+        for v in query_words['verb']:
+            if len(v) == 0:
+                continue
+            upper_value = v.upper()
+            first_char_upper = v[0].upper() + v[1:]
+            if lang == 'en':
+                result=db.word.insert_one({'section_name': 'query', 'type': 'Verb', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
+            else:
+                result=db.word.insert_one({'section_name': 'query', 'type': 'Verb', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
+
+        for v in query_words['adjective']:
+            if len(v) == 0:
+                continue
+            upper_value = v.upper()
+            first_char_upper = v[0].upper() + v[1:]
+            if lang == 'en':
+                result=db.word.insert_one({'section_name': 'query', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
+            else:
+                result=db.word.insert_one({'section_name': 'query', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': -1, 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else first_char_upper})
+
+        result = db.favorite.update_one({'_id':obj['_id']}, {"$set": {'is_checked': True}})
+    except:
+        print("for obj in db.query.find({'is_checked': False}): error")
+        print("obj: ", obj)
+        continue
 
 for obj in db.favorite.find({'is_checked': False}):
-    url = obj['href']
-
-    headers = { "User-Agent" :  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36" }
-    # req = urllib.request.Request(url, None, headers)
-    # with urllib.request.urlopen(req) as res:
-    #     # print(res.headers.get_content_charset())
-    #     read_body = res.read()
-    #     try:
-    #         body = read_body.decode('utf-8')
-    #     except:
-    #         body = read_body.decode('shift-jis')
-
-    # soup = BeautifulSoup(body, 'lxml')
-
-    # web_text = text_from_html(body)
-    # print(web_text)
-
     try:
-        response = requests.get(url, headers=headers)
-    except:
-        continue
-    time.sleep(1)
-    response.encoding = response.apparent_encoding
-    soup = BeautifulSoup(response.text, 'lxml')
+        url = obj['href']
 
-    web_text = text_from_html(response.text)
+        headers = { "User-Agent" :  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36" }
+        # req = urllib.request.Request(url, None, headers)
+        # with urllib.request.urlopen(req) as res:
+        #     # print(res.headers.get_content_charset())
+        #     read_body = res.read()
+        #     try:
+        #         body = read_body.decode('utf-8')
+        #     except:
+        #         body = read_body.decode('shift-jis')
 
-    title = ''
-    title_soup = soup.find("meta", property="og:title")
-    if title_soup != None:
-        title = title_soup["content"]
-    else:
-        title = soup.find('title').text
+        # soup = BeautifulSoup(body, 'lxml')
 
-    lang = ''
-    if is_japanese(title):
-        lang = 'ja'
-    else:
-        lang = 'en'
+        # web_text = text_from_html(body)
+        # print(web_text)
 
-    description = ''
-    description_soup = soup.find("meta",  property="og:description")
-    if description_soup != None:
-        description = description_soup["content"]
-    else:
-        description_soup = soup.find("meta",  property="description")
+        try:
+            response = requests.get(url, headers=headers)
+        except:
+            continue
+        time.sleep(1)
+        response.encoding = response.apparent_encoding
+        soup = BeautifulSoup(response.text, 'lxml')
+
+        web_text = text_from_html(response.text)
+
+        title = ''
+        title_soup = soup.find("meta", property="og:title")
+        if title_soup != None:
+            title = title_soup["content"]
+        else:
+            title = soup.find('title').text
+
+        lang = ''
+        if is_japanese(title):
+            lang = 'ja'
+        else:
+            lang = 'en'
+
+        description = ''
+        description_soup = soup.find("meta",  property="og:description")
         if description_soup != None:
             description = description_soup["content"]
         else:
-            if lang == 'ja':
-                description = web_text[0:120]
+            description_soup = soup.find("meta",  property="description")
+            if description_soup != None:
+                description = description_soup["content"]
             else:
-                description = web_text[0:280]
+                if lang == 'ja':
+                    description = web_text[0:120]
+                else:
+                    description = web_text[0:280]
 
-    favorite_id = obj['_id']
-    result = db.favorite.update({'_id': favorite_id}, {'$set':{'title':title, 'description': description}})
-    title_words = get_words(tokennizer, title + description, lang)
+        favorite_id = obj['_id']
+        result = db.favorite.update({'_id': favorite_id}, {'$set':{'title':title, 'description': description}})
+        title_words = get_words(tokennizer, title + description, lang)
 
-    # descriptionParser = DescriptionParser()
-    # descriptionParser.feed(body)
-    # description = descriptionParser.return_value
-    # descriptionParser.close()
-    # print(description)
-    description_words = get_words(tokennizer, description, lang)
+        # descriptionParser = DescriptionParser()
+        # descriptionParser.feed(body)
+        # description = descriptionParser.return_value
+        # descriptionParser.close()
+        # print(description)
+        description_words = get_words(tokennizer, description, lang)
 
-    print("title_words=", title_words)
-    print("description_words=", description_words)
+        # print("title_words=", title_words)
+        # print("description_words=", description_words)
 
-    for v in title_words['noun']:
-        upper_value = v.upper()
-        web_text_upper = web_text.upper()
-        if (web_text_upper.count(upper_value) > 0):
-            if lang == 'en':
-                first_char_upper = v[0].upper() + v[1:]
-                is_translated = False
-                ja_text = ''
-                for objj in db.word.find({'jp_nickname': {'$ne' : ''}, 'lang': 'en'}):
-                    if (objj['value'][0].upper() + objj['value'][1:]) == first_char_upper:
-                        is_translated = True
-                        ja_text = objj['jp_nickname']
-                        break
-                if is_translated == False:
-                    get_ja_text = get_ja_text_from_en(first_char_upper)
-                    time.sleep(1)
-                    if get_ja_text != '':
-                        ja_text = get_ja_text
-                    else:
-                        ja_text = v
-                result=db.word.insert_one({'section_name': 'title', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': ja_text})
-            else:
-                result=db.word.insert_one({'section_name': 'title', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+        for v in title_words['noun']:
+            upper_value = v.upper()
+            web_text_upper = web_text.upper()
+            if (web_text_upper.count(upper_value) > 0):
+                if lang == 'en':
+                    first_char_upper = v[0].upper() + v[1:]
+                    is_translated = False
+                    ja_text = ''
+                    for objj in db.word.find({'jp_nickname': {'$ne' : ''}, 'lang': 'en'}):
+                        if (objj['value'][0].upper() + objj['value'][1:]) == first_char_upper:
+                            is_translated = True
+                            ja_text = objj['jp_nickname']
+                            break
+                    if is_translated == False:
+                        get_ja_text = get_ja_text_from_en(first_char_upper)
+                        time.sleep(1)
+                        if get_ja_text != '':
+                            ja_text = get_ja_text
+                        else:
+                            ja_text = v
+                    result=db.word.insert_one({'section_name': 'title', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': ja_text})
+                else:
+                    result=db.word.insert_one({'section_name': 'title', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
 
-    for v in title_words['properNoun']:
-        upper_value = v.upper()
-        web_text_upper = web_text.upper()
-        if (web_text_upper.count(upper_value) > 0):
-            if lang == 'en':
-                first_char_upper = v[0].upper() + v[1:]
-                is_translated = False
-                ja_text = ''
-                for objj in db.word.find({'jp_nickname': {'$ne' : ''}, 'lang': 'en'}):
-                    if (objj['value'][0].upper() + objj['value'][1:]) == first_char_upper:
-                        is_translated = True
-                        ja_text = objj['jp_nickname']
-                        break
-                if is_translated == False:
-                    get_ja_text = get_ja_text_from_en(first_char_upper)
-                    time.sleep(1)
-                    if get_ja_text != '':
-                        ja_text = get_ja_text
-                    else:
-                        ja_text = v
+        for v in title_words['properNoun']:
+            upper_value = v.upper()
+            web_text_upper = web_text.upper()
+            if (web_text_upper.count(upper_value) > 0):
+                if lang == 'en':
+                    first_char_upper = v[0].upper() + v[1:]
+                    is_translated = False
+                    ja_text = ''
+                    for objj in db.word.find({'jp_nickname': {'$ne' : ''}, 'lang': 'en'}):
+                        if (objj['value'][0].upper() + objj['value'][1:]) == first_char_upper:
+                            is_translated = True
+                            ja_text = objj['jp_nickname']
+                            break
+                    if is_translated == False:
+                        get_ja_text = get_ja_text_from_en(first_char_upper)
+                        time.sleep(1)
+                        if get_ja_text != '':
+                            ja_text = get_ja_text
+                        else:
+                            ja_text = v
 
-                result=db.word.insert_one({'section_name': 'title', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': ja_text})
-            else:
-                result=db.word.insert_one({'section_name': 'title', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+                    result=db.word.insert_one({'section_name': 'title', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': ja_text})
+                else:
+                    result=db.word.insert_one({'section_name': 'title', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
 
-    for v in title_words['verb']:
-        upper_value = v.upper()
-        web_text_upper = web_text.upper()
-        if (web_text_upper.count(upper_value) > 0):
-            if lang == 'en':
-                result=db.word.insert_one({'section_name': 'title', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
-            else:
-                result=db.word.insert_one({'section_name': 'title', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+        for v in title_words['verb']:
+            upper_value = v.upper()
+            web_text_upper = web_text.upper()
+            if (web_text_upper.count(upper_value) > 0):
+                if lang == 'en':
+                    result=db.word.insert_one({'section_name': 'title', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+                else:
+                    result=db.word.insert_one({'section_name': 'title', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
 
-    for v in title_words['adjective']:
-        upper_value = v.upper()
-        web_text_upper = web_text.upper()
-        if (web_text_upper.count(upper_value) > 0):
-            if lang == 'en':
-                result=db.word.insert_one({'section_name': 'title', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
-            else:
-                result=db.word.insert_one({'section_name': 'title', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+        for v in title_words['adjective']:
+            upper_value = v.upper()
+            web_text_upper = web_text.upper()
+            if (web_text_upper.count(upper_value) > 0):
+                if lang == 'en':
+                    result=db.word.insert_one({'section_name': 'title', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+                else:
+                    result=db.word.insert_one({'section_name': 'title', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
 
-    for v in description_words['noun']:
-        upper_value = v.upper()
-        web_text_upper = web_text.upper()
-        if (web_text_upper.count(upper_value) > 0):
-            if lang == 'en':
-                result=db.word.insert_one({'section_name': 'description', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
-            else:
-                result=db.word.insert_one({'section_name': 'description', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+        for v in description_words['noun']:
+            upper_value = v.upper()
+            web_text_upper = web_text.upper()
+            if (web_text_upper.count(upper_value) > 0):
+                if lang == 'en':
+                    result=db.word.insert_one({'section_name': 'description', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+                else:
+                    result=db.word.insert_one({'section_name': 'description', 'type': 'Noun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
 
-    for v in description_words['properNoun']:
-        upper_value = v.upper()
-        web_text_upper = web_text.upper()
-        if (web_text_upper.count(upper_value) > 0):
-            if lang == 'en':
-                result=db.word.insert_one({'section_name': 'description', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
-            else:
-                result=db.word.insert_one({'section_name': 'description', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+        for v in description_words['properNoun']:
+            upper_value = v.upper()
+            web_text_upper = web_text.upper()
+            if (web_text_upper.count(upper_value) > 0):
+                if lang == 'en':
+                    result=db.word.insert_one({'section_name': 'description', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+                else:
+                    result=db.word.insert_one({'section_name': 'description', 'type': 'ProperNoun', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
 
-    for v in description_words['verb']:
-        upper_value = v.upper()
-        web_text_upper = web_text.upper()
-        if (web_text_upper.count(upper_value) > 0):
-            if lang == 'en':
-                result=db.word.insert_one({'section_name': 'description', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
-            else:
-                result=db.word.insert_one({'section_name': 'description', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+        for v in description_words['verb']:
+            upper_value = v.upper()
+            web_text_upper = web_text.upper()
+            if (web_text_upper.count(upper_value) > 0):
+                if lang == 'en':
+                    result=db.word.insert_one({'section_name': 'description', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+                else:
+                    result=db.word.insert_one({'section_name': 'description', 'type': 'Verb', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
 
-    for v in description_words['adjective']:
-        upper_value = v.upper()
-        web_text_upper = web_text.upper()
-        if (web_text_upper.count(upper_value) > 0):
-            if lang == 'en':
-                result=db.word.insert_one({'section_name': 'description', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
-            else:
-                result=db.word.insert_one({'section_name': 'description', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+        for v in description_words['adjective']:
+            upper_value = v.upper()
+            web_text_upper = web_text.upper()
+            if (web_text_upper.count(upper_value) > 0):
+                if lang == 'en':
+                    result=db.word.insert_one({'section_name': 'description', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
+                else:
+                    result=db.word.insert_one({'section_name': 'description', 'type': 'Adjective', 'lang': lang, 'href': url, 'count': web_text_upper.count(upper_value), 'value': v, 'upper_value': upper_value, 'jp_nickname': '' if is_japanese(v) else v})
 
-    result = db.favorite.update_one({'_id':obj['_id']}, {"$set": {'is_checked': True}})
+        result = db.favorite.update_one({'_id':obj['_id']}, {"$set": {'is_checked': True}})
 
-    time.sleep(1)
+        time.sleep(1)
+    except:
+        print("for obj in db.query.favorite({'is_checked': False}): error")
+        print("obj: ", obj)
+        time.sleep(1)
+        continue
+
+"""
 
 
 config_file = open('config.json', 'r')
@@ -535,14 +548,23 @@ def gen_question(question_seed, hinsiType):
         print('unknown hinsiType')
         return
 
+    # # TODO: ここの構造は見直し
+    # if len(list(db.question.find({'question': ja_question}))) == 0:
+    #     result=db.question.insert_one({'question': ja_question, 'lang': 'ja', 'question_seed_en': question_seed_en,  'question_seed_ja': question_seed_ja, 'question_seed_type' : hinsiType ,'translated_from_ja_to_en': translated_from_ja_to_en})
+    #     # print('BBB')
+
+    # if len(list(db.question.find({'question': en_question}))) == 0:
+    #     result=db.question.insert_one({'question': en_question, 'lang': 'en', 'question_seed_en': question_seed_en,  'question_seed_ja': question_seed_ja, 'question_seed_type' : hinsiType ,'translated_from_ja_to_en': ''})
+    #     # print('CCC')
+
     # TODO: ここの構造は見直し
-    if len(list(db.question.find({'question': ja_question}))) == 0:
-        result=db.question.insert_one({'question': ja_question, 'lang': 'ja', 'question_seed_en': question_seed_en,  'question_seed_ja': question_seed_ja, 'question_seed_type' : hinsiType ,'translated_from_ja_to_en': translated_from_ja_to_en})
+    if len(list(db.question.find({'question_ja': ja_question}))) == 0 and len(list(db.question.find({'question_en': en_question}))) == 0:
+        result=db.question.insert_one({'question_ja': ja_question, 'question_en': en_question, 'question_seed_en': question_seed_en,  'question_seed_ja': question_seed_ja, 'question_seed_type' : hinsiType ,'translated_from_ja_to_en': translated_from_ja_to_en})
         # print('BBB')
 
-    if len(list(db.question.find({'question': en_question}))) == 0:
-        result=db.question.insert_one({'question': en_question, 'lang': 'en', 'question_seed_en': question_seed_en,  'question_seed_ja': question_seed_ja, 'question_seed_type' : hinsiType ,'translated_from_ja_to_en': ''})
-        # print('CCC')
+    # if len(list(db.question.find({'question': en_question}))) == 0:
+    #     result=db.question.insert_one({'question': en_question, 'lang': 'en', 'question_seed_en': question_seed_en,  'question_seed_ja': question_seed_ja, 'question_seed_type' : hinsiType ,'translated_from_ja_to_en': ''})
+    #     # print('CCC')
 
     # print('DDD')
 
@@ -593,3 +615,5 @@ for obj in db.word.find({"type": "Verb"}):
             gen_question({'en': obj['value'], 'ja': obj['jp_nickname']}, 'Verb') # 英語, 日本語
         else:
             gen_question({'en': obj['value'], 'ja': ''}, 'Verb') # 英語,
+
+""";
